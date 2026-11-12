@@ -46,7 +46,7 @@ type timing struct {
 	// GC work per 1,000 parses, Go only.
 	GCs1k     float64 `json:"gcs_1k"`
 	GCPause1k float64 `json:"gc_pause_ns_1k"`
-	Err      string  `json:"err,omitempty"`
+	Err       string  `json:"err,omitempty"`
 }
 
 // lib reads one image. mem parses bytes in memory; file parses from a path, as a server

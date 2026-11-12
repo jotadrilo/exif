@@ -20,6 +20,7 @@ lock=/tmp/jotadrilo-bench.lock
 cores=$(sysctl -n hw.ncpu 2>/dev/null || nproc)
 maxload=${MAXLOAD:-$(echo "$cores / 4" | bc -l)}
 count=${COUNT:-10}
+sampletime=${TIME:-300ms}
 mkdir -p "$out/raw"
 [ -d "$corpus" ] || "$here/corpus/corpus.sh" "$corpus" large
 
@@ -32,7 +33,7 @@ cd "$here"
 go build -o "$out/bin/run" ./run
 echo "host run" >&2
 EXIF_BENCH_LOADAVG_FILE="$out/hostload" flock "$lock" "$out/bin/run" -corpus "$corpus" -native native/bin/darwin \
-	-procs 1 -count "$count" -maxload "$maxload" -raw "$out/raw/darwin-1cpu.txt" -summary "$out/darwin-1cpu.json" > "$out/darwin-1cpu.md"
+	-procs 1 -count "$count" -time "$sampletime" -maxload "$maxload" -raw "$out/raw/darwin-1cpu.txt" -summary "$out/darwin-1cpu.json" > "$out/darwin-1cpu.md"
 
 docker build -q -t jotadrilo-exif-bench "$here" >/dev/null
 for n in 1 2 4; do
@@ -42,7 +43,7 @@ for n in 1 2 4; do
 		-e EXIF_BENCH_LOADAVG_FILE=/out/hostload \
 		-v "$here/..:/src" -v "$corpus:/corpus:ro" -v "$out:/out" -v "$(go env GOMODCACHE):/go/pkg/mod" \
 		jotadrilo-exif-bench sh -c "native/build.sh /tmp/native && go build -o /tmp/run ./run && \
-			/tmp/run -corpus /corpus -native /tmp/native -procs $n -count $count -maxload $maxload \
+			/tmp/run -corpus /corpus -native /tmp/native -procs $n -count $count -time $sampletime -maxload $maxload \
 			-raw /out/raw/linux-${n}cpu.txt -summary /out/linux-${n}cpu.json > /out/linux-${n}cpu.md"
 done
 "$out/bin/run" -combine "$out/linux-1cpu.json,$out/linux-2cpu.json,$out/linux-4cpu.json" > "$out/scaling.md"
