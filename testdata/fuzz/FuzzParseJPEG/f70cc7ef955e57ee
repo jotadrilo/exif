@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("MM\x00*\x00\x00\x00\b00\x01\x100000000000")

@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("Exif\x00\x00II000000")
