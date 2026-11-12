@@ -148,8 +148,8 @@ exiftool:
 - time, allocations, peak RSS, latency percentiles and GC work;
 - throughput on 1, 2 and 4 CPUs.
 
-A camera JPEG takes about 30 ns for the orientation and about 150 ns for orientation, GPS and
-date together.
+A camera JPEG takes about 30 ns for the orientation, 40 ns for GPS and 70 ns for the date
+(provisional numbers, Apple M5 Pro).
 
 ## Hardening
 
