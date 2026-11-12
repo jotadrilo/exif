@@ -1,0 +1,4 @@
+bench/native/bin/
+bench/results/raw/
+*.test
+*.prof
