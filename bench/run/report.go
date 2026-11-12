@@ -164,6 +164,8 @@ func report(c config) {
 	bytesOp := map[caseKey][]float64{}
 	rss := map[caseKey][]float64{}
 	tput := map[caseKey][]float64{}
+	p50, p95, p99 := map[caseKey][]float64{}, map[caseKey][]float64{}, map[caseKey][]float64{}
+	gcs, gcPause := map[caseKey][]float64{}, map[caseKey][]float64{}
 	var loads []float64
 	redone := 0
 	for round := 0; round < c.count; round++ {
@@ -172,6 +174,7 @@ func report(c config) {
 		sample := map[caseKey]timing{}
 		rssSample := map[caseKey]timing{}
 		tputSample := map[caseKey]timing{}
+		latSample := map[caseKey]timing{}
 		// Rotate the order every round, so no runner always follows the same one.
 		order := append(append([]runner(nil), rs[round%len(rs):]...), rs[:round%len(rs)]...)
 		for _, f := range files {
@@ -190,6 +193,10 @@ func report(c config) {
 				if err := run(r, "rss", f, "all", &t); err == nil {
 					rssSample[caseKey{filepath.Base(f), "all", r.key}] = t
 				}
+				var lt timing
+				if err := run(r, "latency", f, "all", &lt); err == nil && lt.P50 > 0 {
+					latSample[caseKey{filepath.Base(f), "all", r.key}] = lt
+				}
 				var tp timing
 				if err := run(r, "throughput", f, "all", &tp); err == nil && tp.OpsS > 0 {
 					tputSample[caseKey{filepath.Base(f), "all", r.key}] = tp
@@ -205,7 +212,17 @@ func report(c config) {
 		}
 		loads = append(loads, before, after)
 		fmt.Fprintf(os.Stderr, "round %d/%d: load %.2f -> %.2f\n", round+1, c.count, before, after)
+		for k, t := range latSample {
+			p50[k] = append(p50[k], t.P50)
+			p95[k] = append(p95[k], t.P95)
+			p99[k] = append(p99[k], t.P99)
+			lines = append(lines, fmt.Sprintf("BenchmarkLatency/file=%s/lib=%s 1 %.1f p50-ns %.1f p95-ns %.1f p99-ns", k.file, k.lib, t.P50, t.P95, t.P99))
+		}
 		for k, t := range sample {
+			if t.AllocsOp >= 0 && k.task == "all" {
+				gcs[k] = append(gcs[k], t.GCs1k)
+				gcPause[k] = append(gcPause[k], t.GCPause1k)
+			}
 			times[k] = append(times[k], t.NsOp)
 			allocs[k] = append(allocs[k], t.AllocsOp)
 			bytesOp[k] = append(bytesOp[k], t.BytesOp)
@@ -271,6 +288,7 @@ func report(c config) {
 	if len(sortedLoads) > 0 {
 		fmt.Printf("- 1-minute load average during the kept rounds: median %.2f, max %.2f.\n", median(sortedLoads), sortedLoads[len(sortedLoads)-1])
 	}
+	fmt.Printf("- Latency percentiles time each parse alone and subtract the clock's own cost; the clock ticks every 41.7 ns on Apple silicon (24 MHz), which bounds the resolution of the fastest rows.\n")
 	fmt.Printf("- Cells: median ± the 95%% confidence interval of the median (order statistics), and the ratio to libexif and exiv2 medians from the same run (below 1 is faster). Peak RSS is the median after %d parses from the file path.\n\n", c.rssRuns)
 
 	agree := map[string][2]int{}
@@ -337,6 +355,33 @@ func report(c config) {
 			}
 			cells = append(cells, agreeCell[caseKey{base, "", r.key}])
 			fmt.Println("| " + strings.Join(cells, " | ") + " |")
+		}
+		fmt.Println()
+		fmt.Println("Latency of each parse alone (orientation + GPS + date), and the Go garbage collector's work per 1,000 parses:")
+		fmt.Println()
+		fmt.Println("| Library | p50 | p95 | p99 | GC cycles / 1k parses | GC pause / 1k parses |")
+		fmt.Println("|---|--:|--:|--:|--:|--:|")
+		for _, r := range rs {
+			if r.key == "baseline" {
+				continue
+			}
+			k := caseKey{base, "all", r.key}
+			a, _ := medianCI(p50[k])
+			b, _ := medianCI(p95[k])
+			c, _ := medianCI(p99[k])
+			if math.IsNaN(a) {
+				continue
+			}
+			mark := ""
+			if fails[caseKey{base, "", r.key}] {
+				mark = " †"
+			}
+			g, gp := "n/a", "n/a"
+			if gm, _ := medianCI(gcs[k]); !math.IsNaN(gm) {
+				pm, _ := medianCI(gcPause[k])
+				g, gp = fmt.Sprintf("%.2f", gm), ns(pm)
+			}
+			fmt.Printf("| %s%s | %s | %s | %s | %s | %s |\n", r.name, mark, ns(a), ns(b), ns(c), g, gp)
 		}
 		fmt.Println()
 	}

@@ -2,7 +2,7 @@
 
 // gen writes the base images that corpus.sh gives metadata to: a 12-megapixel JPEG, a
 // thumbnail, and small JPEG and PNG images. Their pixels are a deterministic pattern with
-// noise, so the compressed sizes look like a photo's.
+// noise, so the compressed sizes look like a photo's. With "huge", also a JPEG of about 50 MB.
 package main
 
 import (
@@ -48,6 +48,11 @@ func main() {
 	for name, size := range map[string][2]int{"base-large.jpg": {4032, 3024}, "base-small.jpg": {64, 48}, "thumb.jpg": {160, 120}} {
 		img := pattern(size[0], size[1])
 		write(dir+"/"+name, func(f *os.File) error { return jpeg.Encode(f, img, &jpeg.Options{Quality: 88}) })
+	}
+	if len(os.Args) > 2 && os.Args[2] == "huge" {
+		// About 50 MB: 9000 x 6750 of noise at quality 98.
+		img := pattern(9000, 6750)
+		write(dir+"/base-huge.jpg", func(f *os.File) error { return jpeg.Encode(f, img, &jpeg.Options{Quality: 98}) })
 	}
 	for name, size := range map[string][2]int{"base-large.png": {1024, 768}, "base-small.png": {64, 48}} {
 		img := pattern(size[0], size[1])

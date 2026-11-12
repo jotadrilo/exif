@@ -86,19 +86,18 @@ func (x Exif) validIFD(off uint32) bool {
 
 // entries returns the complete entries of the IFD at off. A directory cut short yields the
 // entries that fit, so a truncated file still gives what it holds.
-func (x Exif) entries(off uint32) (raw []byte, declared int) {
+func (x Exif) entries(off uint32) []byte {
 	if !x.validIFD(off) {
-		return nil, 0
+		return nil
 	}
-	declared = int(x.u16(x.tiff[off:]))
 	start := int(off) + 2
-	n := min(declared, (len(x.tiff)-start)/ifdEntrySize)
-	return x.tiff[start : start+n*ifdEntrySize], declared
+	n := min(int(x.u16(x.tiff[off:])), (len(x.tiff)-start)/ifdEntrySize)
+	return x.tiff[start : start+n*ifdEntrySize]
 }
 
 // find returns the tag id of the IFD at off. When an IFD repeats a tag, the last one wins.
 func (x Exif) find(dir IFD, off uint32, id uint16) (Tag, bool) {
-	raw, _ := x.entries(off)
+	raw := x.entries(off)
 	at := -1
 	for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
 		if x.u16(raw[i:]) == id {
@@ -131,8 +130,8 @@ func (x Exif) tag(dir IFD, e []byte) Tag {
 
 // pointer reads a sub-IFD offset from a tag, refusing one that leaves the structure or points
 // back at the directory holding it.
-func (x Exif) pointer(dir IFD, off uint32, id uint16) (uint32, bool) {
-	raw, _ := x.entries(off)
+func (x Exif) pointer(off uint32, id uint16) (uint32, bool) {
+	raw := x.entries(off)
 	at := -1
 	for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
 		if x.u16(raw[i:]) == id {
@@ -187,15 +186,15 @@ func (x Exif) offset(dir IFD) (uint32, bool) {
 	case IFD0:
 		return x.ifd0, true
 	case ExifIFD:
-		return x.pointer(IFD0, x.ifd0, TagExifIFDPointer)
+		return x.pointer(x.ifd0, TagExifIFDPointer)
 	case GPSIFD:
-		return x.pointer(IFD0, x.ifd0, TagGPSIFDPointer)
+		return x.pointer(x.ifd0, TagGPSIFDPointer)
 	case InteropIFD:
-		e, ok := x.pointer(IFD0, x.ifd0, TagExifIFDPointer)
+		e, ok := x.pointer(x.ifd0, TagExifIFDPointer)
 		if !ok {
 			return 0, false
 		}
-		return x.pointer(ExifIFD, e, TagInteropIFDPointer)
+		return x.pointer(e, TagInteropIFDPointer)
 	case IFD1:
 		return x.next(x.ifd0)
 	}
@@ -232,7 +231,7 @@ func (x Exif) Tags() iter.Seq[Tag] {
 			}
 			seen[n] = off
 			n++
-			raw, _ := x.entries(off)
+			raw := x.entries(off)
 			for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
 				if !yield(x.tag(dir, raw[i:i+ifdEntrySize])) {
 					return

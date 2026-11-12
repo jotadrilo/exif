@@ -2,6 +2,7 @@ package exif_test
 
 import (
 	"bytes"
+	"errors"
 	"math"
 	"os"
 	"testing"
@@ -79,7 +80,7 @@ func TestTestdata_AgreesWithExiftool(t *testing.T) {
 		})
 	}
 	plain, _ := os.ReadFile("testdata/plain.jpg")
-	if _, err := exif.Parse(plain); err != exif.ErrNoExif {
+	if _, err := exif.Parse(plain); !errors.Is(err, exif.ErrNoExif) {
 		t.Errorf("plain.jpg: %v", err)
 	}
 }

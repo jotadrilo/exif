@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <algorithm>
 #include <atomic>
 #include <iterator>
 #include <thread>
@@ -89,6 +90,27 @@ int main(int argc, char **argv) {
 		}
 		std::ifstream in(file, std::ios::binary);
 		std::vector<Exiv2::byte> b((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+		if (mode == "latency") {
+			using clk = std::chrono::steady_clock;
+			parse(Exiv2::ImageFactory::open(b.data(), b.size()), all, r);
+			std::vector<double> ov, s;
+			for (int i = 0; i < 1000; i++) {
+				auto t0 = clk::now();
+				ov.push_back(std::chrono::duration<double, std::nano>(clk::now() - t0).count());
+			}
+			std::sort(ov.begin(), ov.end());
+			double clock = ov[500];
+			auto deadline = clk::now() + std::chrono::duration<double>(seconds);
+			while (s.size() < 200000 && clk::now() < deadline) {
+				auto t0 = clk::now();
+				parse(Exiv2::ImageFactory::open(b.data(), b.size()), all, r);
+				s.push_back(std::max(0.0, std::chrono::duration<double, std::nano>(clk::now() - t0).count() - clock));
+			}
+			std::sort(s.begin(), s.end());
+			size_t k = s.size();
+			std::printf("{\"p50\":%.1f,\"p95\":%.1f,\"p99\":%.1f}\n", s[k / 2], s[size_t(k * 0.95)], s[size_t(k * 0.99)]);
+			return 0;
+		}
 		if (mode == "throughput") {
 			int nw = argc > 6 ? std::atoi(argv[6]) : 1;
 			parse(Exiv2::ImageFactory::open(b.data(), b.size()), all, r);

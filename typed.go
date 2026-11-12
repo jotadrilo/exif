@@ -98,7 +98,7 @@ func (x Exif) GPS() (GPS, bool) {
 	}
 	// Positions of the entries GPS reads, found in one pass; tags are built only for those used.
 	var at [7]int
-	raw, _ := x.entries(off)
+	raw := x.entries(off)
 	for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
 		if id := x.u16(raw[i:]); id >= TagGPSLatitudeRef && id <= TagGPSStatus && id != TagGPSTimeStamp && id != 8 {
 			at[gpsSlot(id)] = i + 1
@@ -246,11 +246,8 @@ func (x Exif) gpsDirect(raw []byte, at *[7]int) (g GPS, ok, known bool) {
 			if num, den := x.u32(v), x.u32(v[4:]); den != 0 {
 				g.Altitude, g.HasAltitude = float64(num)/float64(den), true
 				if at[4] != 0 {
-					ar := e(4)
-					if Type(x.u16(ar[2:])) == Byte && x.u32(ar[4:]) >= 1 && ar[8] == 1 {
+					if r, err := x.tag(GPSIFD, e(4)).Int(0); err == nil && r == 1 {
 						g.Altitude = -g.Altitude
-					} else if Type(x.u16(ar[2:])) != Byte {
-						return GPS{}, false, false
 					}
 				}
 			}
@@ -339,7 +336,7 @@ func (x Exif) DateTimeOriginal() (t time.Time, hasOffset, ok bool) {
 	}
 	var dt, sub, zone Tag
 	var have uint8
-	raw, _ := x.entries(off)
+	raw := x.entries(off)
 	for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
 		e := raw[i : i+ifdEntrySize]
 		switch x.u16(e) {
@@ -401,7 +398,7 @@ func parseDateTime(s []byte, nsec int, loc *time.Location) (time.Time, bool) {
 	hour, ok4 := num(11, 2)
 	minute, ok5 := num(14, 2)
 	sec, ok6 := num(17, 2)
-	if !(ok1 && ok2 && ok3 && ok4 && ok5 && ok6) {
+	if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 || !ok6 {
 		return time.Time{}, false
 	}
 	if year == 0 || month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || sec > 60 {
@@ -444,7 +441,7 @@ func zoneOffset(t Tag) (int, bool) {
 	h2, b2 := d(b[2])
 	m1, c := d(b[4])
 	m2, e := d(b[5])
-	if !(a && b2 && c && e) {
+	if !a || !b2 || !c || !e {
 		return 0, false
 	}
 	h, m := h1*10+h2, m1*10+m2

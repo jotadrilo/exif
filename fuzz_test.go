@@ -115,7 +115,7 @@ func slowGPS(x exif.Exif) (exif.GPS, bool) {
 	lat, ok2 := get(2)
 	lonRef, ok3 := get(3)
 	lon, ok4 := get(4)
-	if !(ok1 && ok2 && ok3 && ok4) {
+	if !ok1 || !ok2 || !ok3 || !ok4 {
 		return exif.GPS{}, false
 	}
 	if st, ok := get(9); ok && letter(st) == 'V' {

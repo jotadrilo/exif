@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, Go ${{ matrix.go }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, go: stable }     # linux/amd64
+          - { os: ubuntu-latest, go: "1.23.x" }   # the oldest Go go.mod allows
+          - { os: ubuntu-24.04-arm, go: stable }  # linux/arm64
+          - { os: macos-latest, go: stable }      # darwin/arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Build without cgo
+        run: CGO_ENABLED=0 go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test with the race detector
+        run: go test -race -count=1 ./...
+      - name: Test without cgo
+        run: CGO_ENABLED=0 go test -count=1 ./...
+      - name: Soak (50,000 files; fails if the heap or RSS grows) and goroutine leaks
+        working-directory: soak
+        run: go test -count=1 -v ./...
+
+  fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [FuzzParseJPEG, FuzzParseTIFF, FuzzParsePNG, FuzzParseWebP, FuzzStrip]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Fuzz ${{ matrix.target }} for 30 seconds
+        run: go test -run '^$' -fuzz '^${{ matrix.target }}$' -fuzztime 30s .
+      - name: Keep a failing input
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-${{ matrix.target }}
+          path: testdata/fuzz
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.11
+      - name: Lint the soak module
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.11
+          working-directory: soak

@@ -15,6 +15,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -39,6 +40,12 @@ type timing struct {
 	BytesOp  float64 `json:"bytes_op"`
 	MaxRSSKB int64   `json:"maxrss_kb"`
 	OpsS     float64 `json:"ops_s"`
+	P50      float64 `json:"p50"`
+	P95      float64 `json:"p95"`
+	P99      float64 `json:"p99"`
+	// GC work per 1,000 parses, Go only.
+	GCs1k     float64 `json:"gcs_1k"`
+	GCPause1k float64 `json:"gc_pause_ns_1k"`
 	Err      string  `json:"err,omitempty"`
 }
 
@@ -124,14 +131,39 @@ func runChild(mode, name, file string, all bool, minTime time.Duration, rssRuns,
 			runtime.ReadMemStats(&after)
 			if elapsed >= minTime {
 				_ = out.Encode(timing{
-					NsOp:     float64(elapsed.Nanoseconds()) / float64(n),
-					AllocsOp: float64(after.Mallocs-before.Mallocs) / float64(n),
-					BytesOp:  float64(after.TotalAlloc-before.TotalAlloc) / float64(n),
+					NsOp:      float64(elapsed.Nanoseconds()) / float64(n),
+					AllocsOp:  float64(after.Mallocs-before.Mallocs) / float64(n),
+					BytesOp:   float64(after.TotalAlloc-before.TotalAlloc) / float64(n),
+					GCs1k:     1000 * float64(after.NumGC-before.NumGC) / float64(n),
+					GCPause1k: 1000 * float64(after.PauseTotalNs-before.PauseTotalNs) / float64(n),
 				})
 				return
 			}
 			n = int(float64(n) * math.Max(2, 1.2*float64(minTime)/float64(max(elapsed, 1))))
 		}
+	case "latency":
+		// Each parse timed alone, less the cost of reading the clock twice.
+		data, err := os.ReadFile(file)
+		must(err)
+		_, _ = l.mem(data, all)
+		const maxSamples = 200_000
+		samples := make([]float64, 0, maxSamples)
+		overhead := make([]float64, 0, 1000)
+		for range 1000 {
+			t0 := time.Now()
+			overhead = append(overhead, float64(time.Since(t0).Nanoseconds()))
+		}
+		sort.Float64s(overhead)
+		clock := overhead[len(overhead)/2]
+		deadline := time.Now().Add(minTime)
+		for len(samples) < maxSamples && time.Now().Before(deadline) {
+			t0 := time.Now()
+			_, _ = l.mem(data, all)
+			samples = append(samples, math.Max(0, float64(time.Since(t0).Nanoseconds())-clock))
+		}
+		sort.Float64s(samples)
+		q := func(p float64) float64 { return samples[min(len(samples)-1, int(p*float64(len(samples))))] }
+		_ = out.Encode(timing{P50: q(0.50), P95: q(0.95), P99: q(0.99)})
 	case "throughput":
 		data, err := os.ReadFile(file)
 		must(err)

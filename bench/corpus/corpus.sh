@@ -10,7 +10,9 @@ here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$dir"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-(cd "$here" && go run gen.go "$work")
+extra=""
+[ "$size" = large ] && extra=huge
+(cd "$here" && go run gen.go "$work" $extra)
 
 camera() { # file byteorder: Sydney, below sea level, orientation 6, offset +10:00
 	exiftool -q -overwrite_original -n -ExifByteOrder="$2" \
@@ -49,4 +51,10 @@ else
 fi
 camera "$dir/camera.tif" MM
 cp "$work/base-$size.jpg" "$dir/plain.jpg"
+if [ "$size" = large ]; then
+	# A 50 MB photo with its EXIF at the start: a reader that needs only the metadata should
+	# not read it whole.
+	cp "$work/base-huge.jpg" "$dir/huge.jpg"
+	camera "$dir/huge.jpg" II
+fi
 ls -l "$dir"

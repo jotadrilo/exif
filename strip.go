@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 	"sync"
 )
@@ -151,7 +152,7 @@ func nextMarker(br *bufio.Reader) (byte, error) {
 func copyScan(bw *bufio.Writer, br *bufio.Reader) (byte, error) {
 	for {
 		chunk, err := br.ReadSlice(0xFF)
-		if err == bufio.ErrBufferFull {
+		if errors.Is(err, bufio.ErrBufferFull) {
 			if _, err := bw.Write(chunk); err != nil {
 				return 0, err
 			}

@@ -5,6 +5,8 @@
 #   2. A linux container per CPU count (1, 2, 4): --cpus=N on a fixed --cpuset of N cores,
 #      GOMAXPROCS=N, latency per parse and throughput with N concurrent parses.
 #   3. The scaling tables, combined from the container runs.
+#   4. The long soak: SOAK_FILES (default 200,000) files with heap profiles at 10,000 and at
+#      the end, and their diff.
 #
 # Every timed run holds the machine-wide lock /tmp/jotadrilo-bench.lock (shared with the other
 # jotadrilo benchmarks), so no two benchmarks run on the machine at once. The host's load
@@ -44,6 +46,15 @@ for n in 1 2 4; do
 			-raw /out/raw/linux-${n}cpu.txt -summary /out/linux-${n}cpu.json > /out/linux-${n}cpu.md"
 done
 "$out/bin/run" -combine "$out/linux-1cpu.json,$out/linux-2cpu.json,$out/linux-4cpu.json" > "$out/scaling.md"
+soakfiles=${SOAK_FILES:-200000}
+mkdir -p "$out/soak"
+echo "soak, $soakfiles files" >&2
+(cd "$here/../soak" && flock "$lock" env SOAK_FILES="$soakfiles" SOAK_PROFILES="$out/soak" \
+	go test -count=1 -run Soak -v -timeout 60m ./... > "$out/soak/soak.txt")
+go tool pprof -top -sample_index=inuse_objects -base "$out/soak/heap-10000.pprof" "$out/soak/heap-$soakfiles.pprof" \
+	> "$out/soak/heap-diff-objects.txt" 2>/dev/null || true
+go tool pprof -top -sample_index=inuse_space -base "$out/soak/heap-10000.pprof" "$out/soak/heap-$soakfiles.pprof" \
+	> "$out/soak/heap-diff-space.txt" 2>/dev/null || true
 for f in "$out"/raw/*.txt; do
 	benchstat -col /lib -row /file,/task "$f" > "${f%.txt}.benchstat" 2>/dev/null || true
 done

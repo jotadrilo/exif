@@ -103,6 +103,11 @@ static void *work(void *arg) {
 	return NULL;
 }
 
+static int cmpd(const void *a, const void *b) {
+	double x = *(const double *)a, y = *(const double *)b;
+	return x < y ? -1 : x > y;
+}
+
 int main(int argc, char **argv) {
 	if (argc < 6) { fprintf(stderr, "usage: %s time|rss|values|throughput FILE TASK SECONDS RSSRUNS [WORKERS]\n", argv[0]); return 2; }
 	const char *mode = argv[1], *file = argv[2];
@@ -119,6 +124,30 @@ int main(int argc, char **argv) {
 		printf("{\"orientation\":%d,\"has_gps\":%s,\"lat\":%.9f,\"lon\":%.9f,\"has_alt\":%s,\"alt\":%.6f,\"taken\":\"%s\"%s}\n",
 		       r.orientation, r.has_gps ? "true" : "false", r.lat, r.lon, r.has_alt ? "true" : "false", r.alt, r.taken,
 		       has ? "" : ",\"err\":\"no EXIF found\"");
+		return 0;
+	}
+	if (!strcmp(mode, "latency")) {
+		// Each parse timed alone, less the cost of reading the clock twice.
+		size_t n;
+		unsigned char *b = slurp(file, &n);
+		parse(exif_data_new_from_data(b, n), all, &r);
+		enum { MAX = 200000 };
+		double *s = malloc(MAX * sizeof *s), ov[1000];
+		for (int i = 0; i < 1000; i++) {
+			double t0 = now();
+			ov[i] = (now() - t0) * 1e9;
+		}
+		qsort(ov, 1000, sizeof *ov, cmpd);
+		double clock = ov[500], deadline = now() + seconds;
+		int k = 0;
+		while (k < MAX && now() < deadline) {
+			double t0 = now();
+			parse(exif_data_new_from_data(b, n), all, &r);
+			double d = (now() - t0) * 1e9 - clock;
+			s[k++] = d > 0 ? d : 0;
+		}
+		qsort(s, k, sizeof *s, cmpd);
+		printf("{\"p50\":%.1f,\"p95\":%.1f,\"p99\":%.1f}\n", s[k / 2], s[(int)(k * 0.95)], s[(int)(k * 0.99)]);
 		return 0;
 	}
 	if (!strcmp(mode, "throughput")) {

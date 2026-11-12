@@ -389,7 +389,7 @@ func TestTag_EveryType(t *testing.T) {
 		} else if _, err := tag.Int(0); !errors.Is(err, exif.ErrMalformed) {
 			t.Errorf("%s: value past the end: %v", name, err)
 		}
-		if x.ByteOrder() != byteOrder(o) {
+		if x.ByteOrder() != o {
 			t.Errorf("%s: byte order", name)
 		}
 	}
