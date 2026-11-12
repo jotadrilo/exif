@@ -51,17 +51,14 @@ const (
 	IFD8      Type = 18
 )
 
+// typeSizes holds the bytes one value of each type takes.
+var typeSizes = [...]uint8{Byte: 1, ASCII: 1, Short: 2, Long: 4, Rational: 8, SByte: 1, Undefined: 1,
+	SShort: 2, SLong: 4, SRational: 8, Float: 4, Double: 8, IFDType: 4, Long8: 8, SLong8: 8, IFD8: 8}
+
 // Size returns the bytes one value of the type takes, or 0 for an unknown type.
 func (t Type) Size() int {
-	switch t {
-	case Byte, ASCII, SByte, Undefined:
-		return 1
-	case Short, SShort:
-		return 2
-	case Long, SLong, Float, IFDType:
-		return 4
-	case Rational, SRational, Double, Long8, SLong8, IFD8:
-		return 8
+	if int(t) < len(typeSizes) {
+		return int(typeSizes[t])
 	}
 	return 0
 }

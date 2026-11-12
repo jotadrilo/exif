@@ -2,6 +2,7 @@ package exif_test
 
 import (
 	"bytes"
+	"math"
 	"testing"
 
 	"github.com/jotadrilo/exif"
@@ -33,8 +34,12 @@ func exercise(t *testing.T, data []byte) {
 		if o := e.Orientation(); o < 1 || o > 8 {
 			t.Fatalf("orientation %d", o)
 		}
-		if g, ok := e.GPS(); ok && (g.Latitude < -90 || g.Latitude > 90 || g.Longitude < -180 || g.Longitude > 180) {
+		g, ok := e.GPS()
+		if ok && (g.Latitude < -90 || g.Latitude > 90 || g.Longitude < -180 || g.Longitude > 180) {
 			t.Fatalf("GPS %+v", g)
+		}
+		if sg, sok := slowGPS(e); sok != ok || (ok && sg != g) {
+			t.Fatalf("GPS %+v %v, slow path %+v %v", g, ok, sg, sok)
 		}
 		_, _, _ = e.DateTimeOriginal()
 		_, _ = e.Make(), e.Model()
@@ -56,6 +61,83 @@ func exercise(t *testing.T, data []byte) {
 			t.Fatalf("%d tags", n)
 		}
 	}
+}
+
+// slowGPS is GPS's documented behavior written with the public accessors only, to check the
+// fast path against.
+func slowGPS(x exif.Exif) (exif.GPS, bool) {
+	get := func(id uint16) (exif.Tag, bool) {
+		var last exif.Tag
+		found := false
+		for tag := range x.Tags() {
+			if tag.IFD == exif.GPSIFD && tag.ID == id {
+				last, found = tag, true
+			}
+		}
+		return last, found
+	}
+	letter := func(t exif.Tag) byte {
+		s, err := t.Text()
+		if err != nil || s == "" {
+			return 0
+		}
+		c := s[0]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		return c
+	}
+	coord := func(v, ref exif.Tag, pos, neg byte, limit float64) (float64, bool) {
+		sign := 0.0
+		switch letter(ref) {
+		case pos:
+			sign = 1
+		case neg:
+			sign = -1
+		default:
+			return 0, false
+		}
+		if v.Count == 0 {
+			return 0, false
+		}
+		d, scale := 0.0, 1.0
+		for i := 0; i < 3 && i < int(v.Count); i++ {
+			f, err := v.Float(i)
+			if err != nil || f < 0 || math.IsInf(f, 0) || math.IsNaN(f) {
+				return 0, false
+			}
+			d += f / scale
+			scale *= 60
+		}
+		return sign * d, d <= limit
+	}
+	latRef, ok1 := get(1)
+	lat, ok2 := get(2)
+	lonRef, ok3 := get(3)
+	lon, ok4 := get(4)
+	if !(ok1 && ok2 && ok3 && ok4) {
+		return exif.GPS{}, false
+	}
+	if st, ok := get(9); ok && letter(st) == 'V' {
+		return exif.GPS{}, false
+	}
+	la, okA := coord(lat, latRef, 'N', 'S', 90)
+	lo, okB := coord(lon, lonRef, 'E', 'W', 180)
+	if !okA || !okB || (la == 0 && lo == 0) {
+		return exif.GPS{}, false
+	}
+	g := exif.GPS{Latitude: la, Longitude: lo}
+	if alt, ok := get(6); ok {
+		if a, err := alt.Float(0); err == nil && a >= 0 && !math.IsInf(a, 0) {
+			g.Altitude, g.HasAltitude = a, true
+			if ref, ok := get(5); ok {
+				if r, err := ref.Int(0); err == nil && r == 1 {
+					g.Altitude = -a
+				}
+			}
+		}
+	}
+	return g, true
 }
 
 func FuzzParseJPEG(f *testing.F) {

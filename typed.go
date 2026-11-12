@@ -96,36 +96,35 @@ func (x Exif) GPS() (GPS, bool) {
 	if !ok {
 		return GPS{}, false
 	}
-	var latRef, lonRef, altRef, status, lat, lon, alt Tag
-	var have uint8
+	// Positions of the entries GPS reads, found in one pass; tags are built only for those used.
+	var at [7]int
 	raw, _ := x.entries(off)
 	for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
-		e := raw[i : i+ifdEntrySize]
-		switch x.u16(e) {
-		case TagGPSLatitudeRef:
-			latRef, have = x.tag(GPSIFD, e), have|1
-		case TagGPSLatitude:
-			lat, have = x.tag(GPSIFD, e), have|2
-		case TagGPSLongitudeRef:
-			lonRef, have = x.tag(GPSIFD, e), have|4
-		case TagGPSLongitude:
-			lon, have = x.tag(GPSIFD, e), have|8
-		case TagGPSAltitudeRef:
-			altRef, have = x.tag(GPSIFD, e), have|16
-		case TagGPSAltitude:
-			alt, have = x.tag(GPSIFD, e), have|32
-		case TagGPSStatus:
-			status, have = x.tag(GPSIFD, e), have|64
+		if id := x.u16(raw[i:]); id >= TagGPSLatitudeRef && id <= TagGPSStatus && id != TagGPSTimeStamp && id != 8 {
+			at[gpsSlot(id)] = i + 1
 		}
 	}
-	if have&15 != 15 {
+	entry := func(slot int) (Tag, bool) {
+		if at[slot] == 0 {
+			return Tag{}, false
+		}
+		e := raw[at[slot]-1:]
+		return x.tag(GPSIFD, e[:ifdEntrySize]), true
+	}
+	if at[0] == 0 || at[1] == 0 || at[2] == 0 || at[3] == 0 {
 		return GPS{}, false
 	}
-	if have&64 != 0 {
-		if s := firstLetter(status); s == 'V' {
-			return GPS{}, false
-		}
+	// The common layout, read in place: ASCII references and RATIONAL triples.
+	if g, ok, known := x.gpsDirect(raw, &at); known {
+		return g, ok
 	}
+	if status, ok := entry(6); ok && firstLetter(status) == 'V' {
+		return GPS{}, false
+	}
+	latRef, _ := entry(0)
+	lat, _ := entry(1)
+	lonRef, _ := entry(2)
+	lon, _ := entry(3)
 	var g GPS
 	g.Latitude, ok = degrees(lat, latRef, 'N', 'S', 90)
 	if !ok {
@@ -135,10 +134,10 @@ func (x Exif) GPS() (GPS, bool) {
 	if !ok || (g.Latitude == 0 && g.Longitude == 0) {
 		return GPS{}, false
 	}
-	if have&32 != 0 {
+	if alt, ok := entry(5); ok {
 		if a, err := alt.Float(0); err == nil && a >= 0 && !math.IsInf(a, 0) {
 			g.Altitude, g.HasAltitude = a, true
-			if have&16 != 0 {
+			if altRef, ok := entry(4); ok {
 				if r, err := altRef.Int(0); err == nil && r == 1 {
 					g.Altitude = -a
 				}
@@ -146,6 +145,126 @@ func (x Exif) GPS() (GPS, bool) {
 		}
 	}
 	return g, true
+}
+
+// gpsDirect reads GPS from the entries at (offsets plus one into raw) when every one present
+// has its usual type; known is false otherwise, and GPS falls back to the generic accessors.
+func (x Exif) gpsDirect(raw []byte, at *[7]int) (g GPS, ok, known bool) {
+	e := func(slot int) []byte { return raw[at[slot]-1 : at[slot]-1+ifdEntrySize] }
+	letter := func(slot int) (byte, bool) {
+		en := e(slot)
+		if Type(x.u16(en[2:])) != ASCII {
+			return 0, false
+		}
+		n := x.u32(en[4:])
+		var c byte
+		switch {
+		case n == 0:
+		case n <= 4:
+			c = en[8]
+		default:
+			off := uint64(x.u32(en[8:]))
+			if off+uint64(n) > uint64(len(x.tiff)) {
+				return 0, true // malformed: no letter
+			}
+			c = x.tiff[off]
+		}
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		return c, true
+	}
+	rats := func(slot int) (v []byte, n int, malformed, typed bool) {
+		en := e(slot)
+		if Type(x.u16(en[2:])) != Rational {
+			return nil, 0, false, false
+		}
+		count := uint64(x.u32(en[4:]))
+		off := uint64(x.u32(en[8:]))
+		if count == 0 || off+8*count > uint64(len(x.tiff)) {
+			return nil, 0, true, true
+		}
+		return x.tiff[off : off+8*count], int(min(count, 3)), false, true
+	}
+	coord := func(slot int, ref byte, pos, neg byte, limit float64) (float64, bool, bool) {
+		var sign float64
+		switch ref {
+		case pos:
+			sign = 1
+		case neg:
+			sign = -1
+		default:
+			return 0, false, true
+		}
+		v, n, bad, typed := rats(slot)
+		if !typed {
+			return 0, false, false
+		}
+		if bad {
+			return 0, false, true
+		}
+		d, scale := 0.0, 1.0
+		for i := range n {
+			num, den := x.u32(v[8*i:]), x.u32(v[8*i+4:])
+			if den == 0 {
+				return 0, false, true
+			}
+			d += float64(num) / float64(den) / scale
+			scale *= 60
+		}
+		return sign * d, d <= limit, true
+	}
+	if at[6] != 0 {
+		s, typed := letter(6)
+		if !typed {
+			return GPS{}, false, false
+		}
+		if s == 'V' {
+			return GPS{}, false, true
+		}
+	}
+	latRef, t1 := letter(0)
+	lonRef, t2 := letter(2)
+	if !t1 || !t2 {
+		return GPS{}, false, false
+	}
+	lat, okLat, t3 := coord(1, latRef, 'N', 'S', 90)
+	lon, okLon, t4 := coord(3, lonRef, 'E', 'W', 180)
+	if !t3 || !t4 {
+		return GPS{}, false, false
+	}
+	if !okLat || !okLon || (lat == 0 && lon == 0) {
+		return GPS{}, false, true
+	}
+	g = GPS{Latitude: lat, Longitude: lon}
+	if at[5] != 0 {
+		v, _, bad, typed := rats(5)
+		if !typed {
+			return GPS{}, false, false
+		}
+		if !bad {
+			if num, den := x.u32(v), x.u32(v[4:]); den != 0 {
+				g.Altitude, g.HasAltitude = float64(num)/float64(den), true
+				if at[4] != 0 {
+					ar := e(4)
+					if Type(x.u16(ar[2:])) == Byte && x.u32(ar[4:]) >= 1 && ar[8] == 1 {
+						g.Altitude = -g.Altitude
+					} else if Type(x.u16(ar[2:])) != Byte {
+						return GPS{}, false, false
+					}
+				}
+			}
+		}
+	}
+	return g, true, true
+}
+
+// gpsSlot maps the GPS tags GPS reads (1 through 6, and 9) to 0 through 6.
+func gpsSlot(id uint16) int {
+	if id == TagGPSStatus {
+		return 6
+	}
+	return int(id) - 1
 }
 
 // firstLetter returns the upper-cased first byte of an ASCII tag, or 0.
@@ -178,6 +297,22 @@ func degrees(v, ref Tag, pos, neg byte, limit float64) (float64, bool) {
 	}
 	d := 0.0
 	scale := 1.0
+	if v.Type == Rational && v.value != nil {
+		// The common case, read without the generic accessors.
+		n := min(int(v.Count), 3)
+		for i := range n {
+			num, den := v.u32(v.value[8*i:]), v.u32(v.value[8*i+4:])
+			if den == 0 {
+				return 0, false
+			}
+			d += float64(num) / float64(den) / scale
+			scale *= 60
+		}
+		if d > limit {
+			return 0, false
+		}
+		return sign * d, true
+	}
 	for i := 0; i < 3 && uint64(i) < uint64(v.Count); i++ {
 		f, err := v.Float(i)
 		if err != nil || f < 0 || math.IsInf(f, 0) || math.IsNaN(f) {

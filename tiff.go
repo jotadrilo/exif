@@ -3,7 +3,6 @@ package exif
 import (
 	"encoding/binary"
 	"iter"
-	"math"
 )
 
 const (
@@ -133,15 +132,30 @@ func (x Exif) tag(dir IFD, e []byte) Tag {
 // pointer reads a sub-IFD offset from a tag, refusing one that leaves the structure or points
 // back at the directory holding it.
 func (x Exif) pointer(dir IFD, off uint32, id uint16) (uint32, bool) {
-	t, ok := x.find(dir, off, id)
-	if !ok || t.Count == 0 || (t.Type != Long && t.Type != IFDType && t.Type != Short) {
+	raw, _ := x.entries(off)
+	at := -1
+	for i := 0; i+ifdEntrySize <= len(raw); i += ifdEntrySize {
+		if x.u16(raw[i:]) == id {
+			at = i
+		}
+	}
+	if at < 0 {
 		return 0, false
 	}
-	v, err := t.Int(0)
-	if err != nil || v > math.MaxUint32 {
+	// Read in place: a pointer is one LONG or IFD (or, rarely, a SHORT), held in the entry.
+	e := raw[at : at+ifdEntrySize]
+	var p uint32
+	switch Type(x.u16(e[2:])) {
+	case Long, IFDType:
+		p = x.u32(e[8:])
+	case Short:
+		p = uint32(x.u16(e[8:]))
+	default:
 		return 0, false
 	}
-	p := uint32(v)
+	if x.u32(e[4:]) == 0 {
+		return 0, false
+	}
 	if p == off || p == x.ifd0 || !x.validIFD(p) {
 		return 0, false
 	}

@@ -1,0 +1,4 @@
+native/bin/
+results/corpus/
+results/*/bin/
+results/*/hostload*
