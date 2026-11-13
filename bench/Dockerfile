@@ -1,4 +1,4 @@
-# The Linux benchmark environment: the same Go as the host's bench module, libexif, exiv2 and
+# The optional Linux benchmark environment (container.sh, not the published numbers): the same Go as the host's bench module, libexif, exiv2 and
 # exiftool from Debian. bench.sh mounts the repository, the corpus and the module cache.
 FROM golang:1.27.0-trixie
 RUN apt-get update \

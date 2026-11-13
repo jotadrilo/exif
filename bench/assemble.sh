@@ -25,8 +25,11 @@ native libraries other ecosystems use:
 
 ## Method
 
-Everything is in [\`bench/\`](bench) and runs with \`bench/bench.sh\`:
+Everything is in [\`bench/\`](bench) and runs with \`bench/bench.sh\`. There is one environment,
+native macOS on one Mac, and one configuration, the same every time it runs:
 
+- **Configuration.** GOMAXPROCS is left at its default (every CPU), every library runs at its
+  defaults, and the native harnesses run their usual way.
 - **Corpus.** \`bench/corpus/corpus.sh\` writes the corpus. exiftool, not this package, gives each
   file its metadata. The corpus holds:
   - a 12-megapixel camera JPEG (little-endian EXIF with a thumbnail, GPS south and east below
@@ -39,44 +42,41 @@ Everything is in [\`bench/\`](bench) and runs with \`bench/bench.sh\`:
   - Orientation only.
   - Orientation, GPS and DateTimeOriginal, each library through its documented API.
 - **Isolation.**
+  - The run holds the machine-wide lock \`/tmp/jotadrilo-bench.lock\`, shared with the other
+    jotadrilo benchmarks.
+  - It runs under \`taskpolicy -t 0 -l 0\`: the highest throughput and latency tiers, with no
+    QoS clamp. taskpolicy can only clamp QoS down, so it cannot raise a process to
+    user-interactive.
   - Every sample runs in its own process, so peak RSS belongs to one library.
-  - Every run holds the machine-wide lock \`/tmp/jotadrilo-bench.lock\`, so no other benchmark
-    shares the machine.
   - The libraries are interleaved in rounds, and the order rotates every round.
   - A warm-up round comes first.
   - A round is redone when the host's 1-minute load average rises above a quarter of its cores.
 - **Statistics.** Each cell is the median of 10 rounds, with the half-width of a
-  distribution-free 95% confidence interval of the median (order statistics). Every row also
-  gives its ratio to libexif and to exiv2, both measured in the same run. The raw samples are in
-  benchstat format under \`$rel/raw\`, with benchstat's tables, including p-values, beside them.
-- **Platforms.**
-  - The macOS host, GOMAXPROCS=1.
-  - A linux/arm64 container (Debian, the same Go) with \`--cpus=N --cpuset-cpus\` pinned to N
-    cores and GOMAXPROCS=N, for N = 1, 2 and 4.
+  distribution-free 95% confidence interval of the median. Every row also gives its ratio to
+  libexif and to exiv2, both measured in the same run. The raw samples are in benchstat format,
+  with benchstat's tables, including p-values, beside them.
 - **What each measurement means.**
-  - *Time*: a parse from memory, as an upload handler holding the bytes would do.
-  - *Peak RSS*: 50 parses from the file path, as each library documents for files. The baseline
-    row only opens and closes the file.
-  - *Latency*: each parse timed alone, as p50, p95 and p99.
-  - *Throughput*: N concurrent parses on N CPUs.
+  - *Time*: a parse from memory.
+  - *Peak RSS*: 50 parses from the file path. The baseline row only opens and closes the file.
+  - *Latency*: each parse timed alone, as p50, p95 and p99. The clock ticks every 41.7 ns on
+    Apple silicon.
+  - *GC*: GC cycles and pause time per 1,000 parses.
+  - *Throughput*: as many concurrent parses as there are CPUs, using goroutines for Go and
+    threads in one process for the native harnesses.
 - **Reading the values.** "Agrees with exiftool" checks orientation, latitude, longitude,
   altitude and DateTimeOriginal. A library that cannot read a format is marked †. Its time is how
   long it takes to give up, and it gets no ratio.
 
+## Environment
+
+To compare a later run, match these first.
+
 HEAD
-	echo "## Scaling: 1, 2 and 4 CPUs (linux/arm64 container)"
+	cat "$r/env.md"
 	echo
-	cat "$r/scaling.md"
+	echo "## Results"
 	echo
-	echo "## macOS host, 1 CPU"
-	echo
-	sed 's/^#### /### /' "$r/darwin-1cpu.md"
-	for n in 1 2 4; do
-		echo
-		echo "## linux/arm64 container, $n CPU"
-		echo
-		sed 's/^#### /### /' "$r/linux-${n}cpu.md"
-	done
+	sed 's/^#### /### /' "$r/bench.md"
 	echo
 	echo "## Memory over many files (soak)"
 	echo
@@ -89,6 +89,6 @@ HEAD
 	echo "The heap in use stays flat. HeapObjects settles as the runtime's goroutine and pool caches fill, and the test fails if the last third of the samples rises past the middle third's peak. The in-use objects of the heap profile at 10,000 files, diffed against the last one ($rel/soak):"
 	echo
 	echo '```'
-	sed -n '1,14p' "$r/soak/heap-diff-objects.txt"
+	sed -n '1,14p' "$r/soak/heap-diff-inuse_objects.txt"
 	echo '```'
 } > "$here/../BENCHMARKS.md"

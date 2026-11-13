@@ -18,49 +18,56 @@ ecosystems use:
 
 ## Method
 
-Everything is in [`bench/`](bench) and runs with `bench/bench.sh`:
+Everything is in [`bench/`](bench) and runs with `bench/bench.sh`. There is one environment,
+native macOS on one Mac, and one configuration, the same every time it runs:
 
-- **Corpus.** `bench/corpus/corpus.sh` writes the corpus. exiftool, not this package, gives each
-  file its metadata. The corpus holds:
-  - a 12-megapixel camera JPEG (little-endian EXIF with a thumbnail, GPS south and east below sea
-    level, and a time offset);
-  - a phone JPEG (big-endian, north and west);
-  - the same camera metadata in a PNG, a WebP and a TIFF;
-  - a JPEG without EXIF;
-  - a 50 MB JPEG with its EXIF at the start.
-- **Tasks.**
-  - Orientation only.
-  - Orientation, GPS and DateTimeOriginal, each library through its documented API.
+- **Configuration.** GOMAXPROCS is left at its default (every CPU), every library runs at its
+  defaults, and the native harnesses run their usual way.
 - **Isolation.**
-  - Every sample runs in its own process, so peak RSS belongs to one library.
-  - Every run holds the machine-wide lock `/tmp/jotadrilo-bench.lock`.
+  - The run holds the machine-wide lock `/tmp/jotadrilo-bench.lock`.
+  - It runs under `taskpolicy -t 0 -l 0`: the highest throughput and latency tiers, with no QoS
+    clamp. taskpolicy can only clamp QoS down, so it cannot raise a process to user-interactive.
   - The libraries are interleaved in rounds, and the order rotates every round.
   - A warm-up round comes first.
-  - A round is redone when the host's load average rises above a quarter of its cores.
-- **Statistics.**
-  - Each cell is the median of 10 rounds, with the half-width of a distribution-free 95%
-    confidence interval of the median.
-  - Every row also gives its ratio to libexif and to exiv2, both measured in the same run.
-  - The raw samples are kept in benchstat format, with benchstat's tables, including p-values,
-    beside them.
-- **Platforms.**
-  - The macOS host, GOMAXPROCS=1.
-  - A linux/arm64 container pinned with `--cpus=N --cpuset-cpus` to N cores, GOMAXPROCS=N, for
-    N = 1, 2 and 4: latency at each count, and throughput with N concurrent parses with its
-    scaling efficiency.
-- **What each measurement means.**
-  - *Time*: a parse from memory.
-  - *Peak RSS*: parses from the file path.
-  - *Latency*: p50, p95 and p99 of each parse timed alone. The clock ticks every 41.7 ns on
-    Apple silicon.
-  - *GC*: GC cycles and pause time per 1,000 parses.
-  - *Soak*: the long soak with heap profile diffs.
-- **Reading the values.** "Agrees with exiftool" checks orientation, latitude, longitude, altitude
-  and DateTimeOriginal.
+  - A round is redone when the load average rises above a quarter of the cores.
+- **Statistics.** Each cell is the median of 10 rounds, with the half-width of a
+  distribution-free 95% confidence interval of the median. Every row also gives its ratio to
+  libexif and to exiv2, both measured in the same run. The raw samples are kept in benchstat
+  format, with benchstat's tables beside them.
+- **Measurements.**
+  - time per parse from memory, and allocations;
+  - peak RSS when parsing from the path;
+  - p50, p95 and p99 latency;
+  - GC work per 1,000 parses;
+  - throughput with as many concurrent parses as CPUs (18 here);
+  - agreement with exiftool;
+  - the long soak.
+- **Environment.** `bench/env.sh` records it before and after each run: Mac model, chip and core
+  levels, memory, macOS version, power source, low-power mode, load average, and the Go, C
+  compiler and library versions, along with the exact command. The machine of the provisional
+  numbers:
+
+| | |
+|---|---|
+| Mac model | Mac17,9 |
+| Chip | Apple M5 Pro: 6 "Super" + 12 "Performance" cores |
+| Memory | 48 GiB |
+| macOS | 26.3.2 (25D2150) |
+| Power | AC power, low-power mode off (pmset powermode 0) |
+| Go (bench module) | go1.27.0 (the library itself needs Go 1.23) |
+| C compiler | Apple clang 21.0.0 |
+| libexif / exiv2 / exiftool | 0.6.26 / 0.28.9 / 13.55 (Homebrew) |
+| rwcarlsen/goexif | v0.0.0-20190401172101-9e8deecbddbd |
+| dsoprea/go-exif/v3 | v3.0.1 |
+| evanoberholster/imagemeta | v1.1.0 |
+| bep/imagemeta | v1.1.1 |
+
+A container script (`bench/container.sh`) remains as an optional extra. Its numbers are never the
+published ones.
 
 ## Preliminary: camera JPEG (4.8 MiB), macOS host
 
-These come from a smoke run: Apple M5 Pro, GOMAXPROCS=1, 6 interleaved rounds of 50 ms samples,
+These come from a smoke run in an earlier configuration: GOMAXPROCS=1, one worker for throughput, 6 interleaved rounds of 50 ms samples,
 under the lock, with the load average between 6 and 11. They predate the GPS fast path, which made
 this package's "orientation + GPS + date" about 3× faster (see the next section).
 
@@ -149,8 +156,9 @@ a GC every 5,000 files (macOS, not under the lock):
 
 ## Pending in the final pass
 
-- The full tables for every file, with 10 rounds, 300 ms samples and confidence intervals, on the
-  macOS host and in linux/arm64 containers at 1, 2 and 4 CPUs.
-- Latency percentiles (p50/p95/p99) and GC cycles and pauses per 1,000 parses for every library.
-- Throughput with N concurrent parses on N CPUs, and its scaling efficiency against 1 CPU.
-- The 200,000-file soak under the lock, with its heap profile diff.
+The official run, `bench/bench.sh`, then `bench/assemble.sh`, in the configuration above:
+
+- every file's tables with 10 rounds of 300 ms samples and confidence intervals;
+- latency percentiles, GC work and 18-way throughput for every library;
+- the 200,000-file soak with its heap profile diff;
+- the environment, recorded before and after.

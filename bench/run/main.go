@@ -70,15 +70,8 @@ func main() {
 	count := flag.Int("count", 10, "rounds; each round takes one sample of every case")
 	maxLoad := flag.Float64("maxload", float64(runtime.NumCPU())/4, "1-minute load average above which a round is redone")
 	raw := flag.String("raw", "", "file for the raw samples in benchstat format")
-	procs := flag.Int("procs", 1, "GOMAXPROCS of the Go children, and the workers of the throughput runs")
-	summary := flag.String("summary", "", "file for the medians in JSON, for -combine")
-	combineFiles := flag.String("combine", "", "comma-separated summaries: print the scaling tables")
-	workers := flag.Int("workers", 1, "internal: concurrent parses")
+	workers := flag.Int("workers", runtime.NumCPU(), "concurrent parses of the throughput samples")
 	flag.Parse()
-	if *combineFiles != "" {
-		combine(strings.Split(*combineFiles, ","))
-		return
-	}
 
 	if *child != "" {
 		runChild(*child, *libName, *file, *task == "all", *minTime, *rssRuns, *workers)
@@ -89,7 +82,7 @@ func main() {
 		os.Exit(2)
 	}
 	report(config{corpus: *corpus, native: *native, minTime: *minTime, rssRuns: *rssRuns,
-		count: *count, maxLoad: *maxLoad, raw: *raw, procs: *procs, summary: *summary})
+		count: *count, maxLoad: *maxLoad, raw: *raw, workers: *workers})
 }
 
 func findLib(name string) lib {

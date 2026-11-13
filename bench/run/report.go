@@ -20,8 +20,7 @@ type config struct {
 	minTime             time.Duration
 	rssRuns, count      int
 	maxLoad             float64
-	procs               int
-	summary             string
+	workers             int // concurrent parses of the throughput samples
 }
 
 // runner runs one measurement of a Go library (this binary as a child) or a native harness.
@@ -62,10 +61,9 @@ func runners(c config) []runner {
 	must(err)
 	child := func(name string) func(mode, file, task string) *exec.Cmd {
 		return func(mode, file, task string) *exec.Cmd {
-			cmd := exec.Command(self, "-child", mode, "-lib", name, "-file", file, "-task", task,
-				"-time", c.minTime.String(), "-rss", fmt.Sprint(c.rssRuns), "-workers", fmt.Sprint(c.procs))
-			cmd.Env = append(os.Environ(), fmt.Sprintf("GOMAXPROCS=%d", c.procs))
-			return cmd
+			// GOMAXPROCS stays at the Go default: every CPU.
+			return exec.Command(self, "-child", mode, "-lib", name, "-file", file, "-task", task,
+				"-time", c.minTime.String(), "-rss", fmt.Sprint(c.rssRuns), "-workers", fmt.Sprint(c.workers))
 		}
 	}
 	var rs []runner
@@ -84,7 +82,7 @@ func runners(c config) []runner {
 			continue
 		}
 		rs = append(rs, runner{n.name, n.key, func(mode, file, task string) *exec.Cmd {
-			return exec.Command(bin, mode, file, task, fmt.Sprint(c.minTime.Seconds()), fmt.Sprint(c.rssRuns), fmt.Sprint(c.procs))
+			return exec.Command(bin, mode, file, task, fmt.Sprint(c.minTime.Seconds()), fmt.Sprint(c.rssRuns), fmt.Sprint(c.workers))
 		}})
 	}
 	return rs
@@ -146,8 +144,8 @@ func report(c config) {
 
 	var rawOut bytes.Buffer
 	cpu := cpuModel()
-	fmt.Fprintf(&rawOut, "goos: %s\ngoarch: %s\ncpu: %s\ngo: %s\ngomaxprocs: %d\ncpus: %d\n",
-		runtime.GOOS, runtime.GOARCH, cpu, runtime.Version(), c.procs, runtime.NumCPU())
+	fmt.Fprintf(&rawOut, "goos: %s\ngoarch: %s\ncpu: %s\ngo: %s\ngomaxprocs: %d\ncpus: %d\nworkers: %d\n",
+		runtime.GOOS, runtime.GOARCH, cpu, runtime.Version(), runtime.GOMAXPROCS(0), runtime.NumCPU(), c.workers)
 	startLoad := loadAverage()
 	fmt.Fprintf(os.Stderr, "start: load %.2f, %d runners, %d files, %d rounds\n", startLoad, len(rs), len(files), c.count)
 
@@ -238,7 +236,7 @@ func report(c config) {
 		}
 		for k, t := range tputSample {
 			tput[k] = append(tput[k], t.OpsS)
-			lines = append(lines, fmt.Sprintf("BenchmarkThroughput/file=%s/workers=%d/lib=%s 1 %.1f files/s", k.file, c.procs, k.lib, t.OpsS))
+			lines = append(lines, fmt.Sprintf("BenchmarkThroughput/file=%s/workers=%d/lib=%s 1 %.1f files/s", k.file, c.workers, k.lib, t.OpsS))
 		}
 		sort.Strings(lines)
 		fmt.Fprintf(&rawOut, "# round %d load %.2f %.2f\n%s\n", round+1, before, after, strings.Join(lines, "\n"))
@@ -246,30 +244,6 @@ func report(c config) {
 	if c.raw != "" {
 		must(os.WriteFile(c.raw, rawOut.Bytes(), 0o644))
 	}
-	if c.summary != "" {
-		sum := summary{Procs: c.procs, CPU: cpu, Go: runtime.Version(), Names: map[string]string{}, Latency: map[string]float64{}, Throughput: map[string]float64{}}
-		for _, r := range rs {
-			sum.Order = append(sum.Order, r.key)
-			sum.Names[r.key] = r.name
-		}
-		for _, f := range files {
-			sum.Files = append(sum.Files, filepath.Base(f))
-		}
-		for k, v := range times {
-			if m, _ := medianCI(v); !math.IsNaN(m) {
-				sum.Latency[k.file+"|"+k.task+"|"+k.lib] = m
-			}
-		}
-		for k, v := range tput {
-			if m, _ := medianCI(v); !math.IsNaN(m) {
-				sum.Throughput[k.file+"|"+k.lib] = m
-			}
-		}
-		b, err := json.MarshalIndent(sum, "", " ")
-		must(err)
-		must(os.WriteFile(c.summary, b, 0o644))
-	}
-
 	// What each library reads, against exiftool.
 	refs := map[string]reference{}
 	out, err := exec.Command("exiftool", append([]string{"-n", "-j", "-Orientation", "-GPSLatitude", "-GPSLongitude", "-GPSAltitude", "-DateTimeOriginal", "-OffsetTimeOriginal"}, files...)...).Output()
@@ -282,7 +256,9 @@ func report(c config) {
 
 	sortedLoads := append([]float64(nil), loads...)
 	sort.Float64s(sortedLoads)
-	fmt.Printf("- Platform: %s/%s, %s, %d CPUs visible, GOMAXPROCS=%d for the Go children.\n", runtime.GOOS, runtime.GOARCH, cpu, runtime.NumCPU(), c.procs)
+	fmt.Printf("- Command: `%s`\n", strings.Join(os.Args, " "))
+	fmt.Printf("- Platform: %s/%s, %s, %d CPUs, GOMAXPROCS at its default (%d); every library at its defaults. Throughput runs %d concurrent parses: goroutines for Go, threads in one process for the native harnesses.\n",
+		runtime.GOOS, runtime.GOARCH, cpu, runtime.NumCPU(), runtime.GOMAXPROCS(0), c.workers)
 	fmt.Printf("- Go %s. %d interleaved rounds, each sample at least %s, after one warm-up round; %d rounds redone for load above %.1f.\n",
 		runtime.Version(), c.count, c.minTime, redone, c.maxLoad)
 	if len(sortedLoads) > 0 {
@@ -304,7 +280,7 @@ func report(c config) {
 		base := filepath.Base(f)
 		st, _ := os.Stat(f)
 		fmt.Printf("#### %s (%s)\n\n", base, size(st.Size()))
-		fmt.Printf("| Library | orientation only | × libexif | × exiv2 | orientation + GPS + date | × libexif | × exiv2 | allocs/op | B/op | peak RSS | throughput, %d concurrent | agrees with exiftool |\n", c.procs)
+		fmt.Printf("| Library | orientation only | × libexif | × exiv2 | orientation + GPS + date | × libexif | × exiv2 | allocs/op | B/op | peak RSS | throughput, %d concurrent | agrees with exiftool |\n", c.workers)
 		fmt.Println("|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|---|")
 		for _, r := range rs {
 			cells := []string{r.name}
@@ -499,17 +475,6 @@ func binomCDF(n, k int) float64 {
 	return p / math.Pow(2, float64(n))
 }
 
-// summary is one run's medians, keyed "file|task|lib" (latency, ns) and "file|lib" (files/s).
-type summary struct {
-	Procs      int
-	CPU, Go    string
-	Order      []string
-	Names      map[string]string
-	Files      []string
-	Latency    map[string]float64
-	Throughput map[string]float64
-}
-
 func rate(v float64) string {
 	switch {
 	case v >= 1e6:
@@ -518,84 +483,4 @@ func rate(v float64) string {
 		return fmt.Sprintf("%.1f k/s", v/1e3)
 	}
 	return fmt.Sprintf("%.0f /s", v)
-}
-
-// combine prints, from runs at several CPU counts, the latency at each count and the
-// throughput scaling against the run with the fewest CPUs.
-func combine(paths []string) {
-	var sums []summary
-	for _, p := range paths {
-		b, err := os.ReadFile(p)
-		must(err)
-		var s summary
-		must(json.Unmarshal(b, &s))
-		sums = append(sums, s)
-	}
-	sort.Slice(sums, func(i, j int) bool { return sums[i].Procs < sums[j].Procs })
-	base := sums[0]
-	header := func(first string, per func(s summary) []string) {
-		cols := []string{first}
-		for _, s := range sums {
-			cols = append(cols, per(s)...)
-		}
-		fmt.Println("| " + strings.Join(cols, " | ") + " |")
-		align := []string{"---"}
-		for range cols[1:] {
-			align = append(align, "--:")
-		}
-		fmt.Println("|" + strings.Join(align, "|") + "|")
-	}
-	for _, f := range base.Files {
-		fmt.Printf("#### %s: latency of one parse (orientation + GPS + date), median\n\n", f)
-		header("Library", func(s summary) []string { return []string{fmt.Sprintf("%d CPU", s.Procs)} })
-		for _, lib := range base.Order {
-			if lib == "baseline" {
-				continue
-			}
-			cells := []string{base.Names[lib]}
-			for _, s := range sums {
-				if v, ok := s.Latency[f+"|all|"+lib]; ok {
-					cells = append(cells, ns(v))
-				} else {
-					cells = append(cells, "—")
-				}
-			}
-			fmt.Println("| " + strings.Join(cells, " | ") + " |")
-		}
-		fmt.Println()
-		fmt.Printf("#### %s: throughput with N concurrent parses on N CPUs, and scaling efficiency against %d CPU\n\n", f, base.Procs)
-		header("Library", func(s summary) []string {
-			if s.Procs == base.Procs {
-				return []string{fmt.Sprintf("%d CPU", s.Procs)}
-			}
-			return []string{fmt.Sprintf("%d CPUs", s.Procs), "efficiency"}
-		})
-		for _, lib := range base.Order {
-			if lib == "baseline" {
-				continue
-			}
-			cells := []string{base.Names[lib]}
-			one := base.Throughput[f+"|"+lib]
-			for _, s := range sums {
-				v, ok := s.Throughput[f+"|"+lib]
-				if !ok {
-					cells = append(cells, "—")
-				} else {
-					cells = append(cells, rate(v))
-				}
-				if s.Procs != base.Procs {
-					if ok && one > 0 {
-						cells = append(cells, fmt.Sprintf("%.0f%%", 100*v/(one*float64(s.Procs)/float64(base.Procs))))
-					} else {
-						cells = append(cells, "—")
-					}
-				}
-			}
-			fmt.Println("| " + strings.Join(cells, " | ") + " |")
-		}
-		fmt.Println()
-	}
-	for _, s := range sums {
-		fmt.Printf("- %d CPU run: %s, %s.\n", s.Procs, s.CPU, s.Go)
-	}
 }
