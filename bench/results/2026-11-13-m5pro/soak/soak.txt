@@ -1,0 +1,45 @@
+=== RUN   TestSoak_TheHeapPlateaus
+    soak_test.go:132: checksum 6835848
+    soak_test.go:134:    5000 files: HeapInuse   2.73 MiB, HeapObjects    771, NumGC    32, RSS   18.2 MiB
+    soak_test.go:134:   10000 files: HeapInuse   2.95 MiB, HeapObjects    815, NumGC    63, RSS   18.3 MiB
+    soak_test.go:134:   15000 files: HeapInuse   1.97 MiB, HeapObjects    836, NumGC    94, RSS   19.7 MiB
+    soak_test.go:134:   20000 files: HeapInuse   3.29 MiB, HeapObjects    905, NumGC   126, RSS   19.7 MiB
+    soak_test.go:134:   25000 files: HeapInuse   3.18 MiB, HeapObjects    934, NumGC   157, RSS   19.7 MiB
+    soak_test.go:134:   30000 files: HeapInuse   3.36 MiB, HeapObjects    962, NumGC   187, RSS   19.7 MiB
+    soak_test.go:134:   35000 files: HeapInuse   3.14 MiB, HeapObjects    974, NumGC   217, RSS   20.1 MiB
+    soak_test.go:134:   40000 files: HeapInuse   3.02 MiB, HeapObjects   1000, NumGC   249, RSS   20.1 MiB
+    soak_test.go:134:   45000 files: HeapInuse   2.95 MiB, HeapObjects   1021, NumGC   280, RSS   20.1 MiB
+    soak_test.go:134:   50000 files: HeapInuse   3.40 MiB, HeapObjects   1072, NumGC   311, RSS   20.1 MiB
+    soak_test.go:134:   55000 files: HeapInuse   2.84 MiB, HeapObjects   1091, NumGC   340, RSS   20.1 MiB
+    soak_test.go:134:   60000 files: HeapInuse   2.05 MiB, HeapObjects   1095, NumGC   373, RSS   20.1 MiB
+    soak_test.go:134:   65000 files: HeapInuse   3.27 MiB, HeapObjects   1156, NumGC   405, RSS   20.2 MiB
+    soak_test.go:134:   70000 files: HeapInuse   3.30 MiB, HeapObjects   1173, NumGC   436, RSS   20.2 MiB
+    soak_test.go:134:   75000 files: HeapInuse   3.07 MiB, HeapObjects   1187, NumGC   467, RSS   20.2 MiB
+    soak_test.go:134:   80000 files: HeapInuse   3.12 MiB, HeapObjects   1202, NumGC   499, RSS   20.7 MiB
+    soak_test.go:134:   85000 files: HeapInuse   3.70 MiB, HeapObjects   1234, NumGC   533, RSS   20.7 MiB
+    soak_test.go:134:   90000 files: HeapInuse   3.32 MiB, HeapObjects   1248, NumGC   566, RSS   20.7 MiB
+    soak_test.go:134:   95000 files: HeapInuse   2.73 MiB, HeapObjects   1261, NumGC   598, RSS   20.7 MiB
+    soak_test.go:134:  100000 files: HeapInuse   2.94 MiB, HeapObjects   1296, NumGC   629, RSS   20.7 MiB
+    soak_test.go:134:  105000 files: HeapInuse   3.34 MiB, HeapObjects   1314, NumGC   661, RSS   20.7 MiB
+    soak_test.go:134:  110000 files: HeapInuse   2.85 MiB, HeapObjects   1302, NumGC   691, RSS   20.7 MiB
+    soak_test.go:134:  115000 files: HeapInuse   3.52 MiB, HeapObjects   1331, NumGC   722, RSS   20.7 MiB
+    soak_test.go:134:  120000 files: HeapInuse   3.33 MiB, HeapObjects   1341, NumGC   753, RSS   20.7 MiB
+    soak_test.go:134:  125000 files: HeapInuse   3.66 MiB, HeapObjects   1373, NumGC   786, RSS   20.7 MiB
+    soak_test.go:134:  130000 files: HeapInuse   3.73 MiB, HeapObjects   1380, NumGC   816, RSS   20.7 MiB
+    soak_test.go:134:  135000 files: HeapInuse   3.73 MiB, HeapObjects   1406, NumGC   848, RSS   20.7 MiB
+    soak_test.go:134:  140000 files: HeapInuse   3.34 MiB, HeapObjects   1348, NumGC   879, RSS   20.7 MiB
+    soak_test.go:134:  145000 files: HeapInuse   2.95 MiB, HeapObjects   1354, NumGC   912, RSS   20.7 MiB
+    soak_test.go:134:  150000 files: HeapInuse   3.76 MiB, HeapObjects   1386, NumGC   943, RSS   20.8 MiB
+    soak_test.go:134:  155000 files: HeapInuse   3.32 MiB, HeapObjects   1393, NumGC   975, RSS   21.4 MiB
+    soak_test.go:134:  160000 files: HeapInuse   2.77 MiB, HeapObjects   1390, NumGC  1007, RSS   21.4 MiB
+    soak_test.go:134:  165000 files: HeapInuse   3.59 MiB, HeapObjects   1423, NumGC  1040, RSS   21.4 MiB
+    soak_test.go:134:  170000 files: HeapInuse   3.72 MiB, HeapObjects   1429, NumGC  1072, RSS   21.4 MiB
+    soak_test.go:134:  175000 files: HeapInuse   3.20 MiB, HeapObjects   1431, NumGC  1103, RSS   21.4 MiB
+    soak_test.go:134:  180000 files: HeapInuse   2.53 MiB, HeapObjects   1410, NumGC  1137, RSS   21.4 MiB
+    soak_test.go:134:  185000 files: HeapInuse   2.95 MiB, HeapObjects   1437, NumGC  1170, RSS   21.4 MiB
+    soak_test.go:134:  190000 files: HeapInuse   3.26 MiB, HeapObjects   1462, NumGC  1201, RSS   21.4 MiB
+    soak_test.go:134:  195000 files: HeapInuse   3.36 MiB, HeapObjects   1467, NumGC  1233, RSS   21.4 MiB
+    soak_test.go:134:  200000 files: HeapInuse   2.96 MiB, HeapObjects   1406, NumGC  1264, RSS   21.4 MiB
+--- PASS: TestSoak_TheHeapPlateaus (1.53s)
+PASS
+ok  	github.com/jotadrilo/exif/soak	1.952s

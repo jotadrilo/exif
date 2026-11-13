@@ -66,16 +66,7 @@ func exercise(t *testing.T, data []byte) {
 // slowGPS is GPS's documented behavior written with the public accessors only, to check the
 // fast path against.
 func slowGPS(x exif.Exif) (exif.GPS, bool) {
-	get := func(id uint16) (exif.Tag, bool) {
-		var last exif.Tag
-		found := false
-		for tag := range x.Tags() {
-			if tag.IFD == exif.GPSIFD && tag.ID == id {
-				last, found = tag, true
-			}
-		}
-		return last, found
-	}
+	get := func(id uint16) (exif.Tag, bool) { return x.Tag(exif.GPSIFD, id) }
 	letter := func(t exif.Tag) byte {
 		s, err := t.Text()
 		if err != nil || s == "" {

@@ -1,11 +1,11 @@
 #!/bin/sh
-# assemble.sh RESULTS STATUS: writes ../BENCHMARKS.md from a bench.sh results directory.
-# STATUS is a line put at the top, such as "Provisional: ...".
+# assemble.sh RESULTS STATUS [NOTES]: writes ../BENCHMARKS.md from a bench.sh results directory.
+# STATUS is a line put at the top; NOTES, a Markdown file, goes before the results.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 r=$1
 status=$2
-rel=${r#"$here/"}
+rel=bench/${r#"$here/"}
 {
 	cat <<HEAD
 # Benchmarks
@@ -74,7 +74,13 @@ To compare a later run, match these first.
 HEAD
 	cat "$r/env.md"
 	echo
+	if [ -n "${3:-}" ]; then
+		cat "$3"
+		echo
+	fi
 	echo "## Results"
+	echo
+	echo "Raw samples, benchstat tables and soak profiles: [\`$rel\`]($rel)."
 	echo
 	sed 's/^#### /### /' "$r/bench.md"
 	echo

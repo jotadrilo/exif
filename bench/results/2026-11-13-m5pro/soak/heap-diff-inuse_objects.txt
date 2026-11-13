@@ -1,0 +1,60 @@
+File: soak.test
+Type: inuse_objects
+Time: 2026-11-13 02:07:12 CET
+Showing nodes accounting for 588, 95.92% of 613 total
+Dropped 4 nodes (cum <= 3)
+      flat  flat%   sum%        cum   cum%
+       428 69.82% 69.82%        428 69.82%  runtime.mallocgc
+        44  7.18% 77.00%         44  7.18%  internal/sync.runtime_SemacquireMutex
+        24  3.92% 80.91%         24  3.92%  github.com/jotadrilo/exif.(*stream).all
+        21  3.43% 84.34%         21  3.43%  bufio.NewReaderSize (inline)
+        19  3.10% 87.44%         19  3.10%  sync.runtime_SemacquireWaitGroup
+        16  2.61% 90.05%         17  2.77%  github.com/jotadrilo/exif.(*stream).truncatable
+        15  2.45% 92.50%         15  2.45%  bufio.NewWriterSize (inline)
+         8  1.31% 93.80%          8  1.31%  bytes.NewReader (inline)
+         4  0.65% 94.45%          4  0.65%  github.com/jotadrilo/exif.(*stream).payload
+         3  0.49% 94.94%          5  0.82%  github.com/jotadrilo/exif.strip
+         2  0.33% 95.27%         47  7.67%  github.com/jotadrilo/exif.Decoder.Decode
+         2  0.33% 95.60%          2  0.33%  github.com/jotadrilo/exif.Tag.Text
+         2  0.33% 95.92%          2  0.33%  runtime/pprof.lockProfiles
+        -1  0.16% 95.76%         84 13.70%  github.com/jotadrilo/exif.Strip
+         1  0.16% 95.92%         20  3.26%  github.com/jotadrilo/exif/soak.TestSoak_TheHeapPlateaus
+         0     0% 95.92%         17  2.77%  github.com/jotadrilo/exif.(*stream).jpeg
+         0     0% 95.92%          2  0.33%  github.com/jotadrilo/exif.(*stream).png
+         0     0% 95.92%          2  0.33%  github.com/jotadrilo/exif.(*stream).webp
+         0     0% 95.92%         47  7.67%  github.com/jotadrilo/exif.Decode (inline)
+         0     0% 95.92%          2  0.33%  github.com/jotadrilo/exif.Exif.Make (inline)
+         0     0% 95.92%          2  0.33%  github.com/jotadrilo/exif.Exif.text
+         0     0% 95.92%          6  0.98%  github.com/jotadrilo/exif.Strip.func1
+         0     0% 95.92%         21  3.43%  github.com/jotadrilo/exif.init.func1
+         0     0% 95.92%         15  2.45%  github.com/jotadrilo/exif.init.func2
+         0     0% 95.92%        143 23.33%  github.com/jotadrilo/exif/soak.TestSoak_TheHeapPlateaus.func2
+         0     0% 95.92%        141 23.00%  github.com/jotadrilo/exif/soak.use
+         0     0% 95.92%          2  0.33%  github.com/jotadrilo/exif/soak.writeHeapProfile
+         0     0% 95.92%         44  7.18%  internal/sync.(*Mutex).Lock (inline)
+         0     0% 95.92%         44  7.18%  internal/sync.(*Mutex).lockSlow
+         0     0% 95.92%          7  1.14%  runtime.(*scavengerState).sleep
+         0     0% 95.92%          7  1.14%  runtime.(*timer).maybeAdd
+         0     0% 95.92%          7  1.14%  runtime.(*timer).modify
+         0     0% 95.92%          7  1.14%  runtime.(*timer).reset (inline)
+         0     0% 95.92%          7  1.14%  runtime.(*timers).addHeap
+         0     0% 95.92%         36  5.87%  runtime.acquireSudog
+         0     0% 95.92%          7  1.14%  runtime.bgscavenge
+         0     0% 95.92%         36  5.87%  runtime.gcBgMarkWorker
+         0     0% 95.92%         36  5.87%  runtime.gcMarkDone
+         0     0% 95.92%          7  1.14%  runtime.growslice
+         0     0% 95.92%        385 62.81%  runtime.malg
+         0     0% 95.92%        421 68.68%  runtime.newobject
+         0     0% 95.92%        385 62.81%  runtime.newproc.func1
+         0     0% 95.92%        385 62.81%  runtime.newproc1
+         0     0% 95.92%         36  5.87%  runtime.semacquire (inline)
+         0     0% 95.92%         36  5.87%  runtime.semacquire1
+         0     0% 95.92%        385 62.81%  runtime.systemstack
+         0     0% 95.92%          2  0.33%  runtime/pprof.Lookup
+         0     0% 95.92%         44  7.18%  sync.(*Mutex).Lock (inline)
+         0     0% 95.92%         74 12.07%  sync.(*Pool).Get
+         0     0% 95.92%          6  0.98%  sync.(*Pool).Put
+         0     0% 95.92%         44  7.18%  sync.(*Pool).pin
+         0     0% 95.92%         44  7.18%  sync.(*Pool).pinSlow
+         0     0% 95.92%         19  3.10%  sync.(*WaitGroup).Wait
+         0     0% 95.92%         20  3.26%  testing.tRunner

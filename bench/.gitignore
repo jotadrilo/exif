@@ -1,2 +1,5 @@
 native/bin/
-results/
+results/corpus/
+results/latest/
+results/container/
+results/*/bin/

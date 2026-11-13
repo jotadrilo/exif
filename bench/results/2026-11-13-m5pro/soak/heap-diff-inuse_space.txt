@@ -1,0 +1,63 @@
+File: soak.test
+Type: inuse_space
+Time: 2026-11-13 02:07:12 CET
+Showing nodes accounting for 16.92kB, 4.19% of 403.81kB total
+Dropped 3 nodes (cum <= 2.02kB)
+      flat  flat%   sum%        cum   cum%
+  188.14kB 46.59% 46.59%   188.14kB 46.59%  runtime.mallocgc
+ -125.58kB 31.10% 15.49%  -125.58kB 31.10%  bufio.NewReaderSize (inline)
+  -62.20kB 15.40% 0.089%   -62.20kB 15.40%  bufio.NewWriterSize (inline)
+    4.81kB  1.19%  1.28%     4.81kB  1.19%  internal/sync.runtime_SemacquireMutex
+    2.62kB  0.65%  1.93%     2.62kB  0.65%  github.com/jotadrilo/exif.(*stream).all
+    2.59kB  0.64%  2.57%  -123.12kB 30.49%  github.com/jotadrilo/exif/soak.TestSoak_TheHeapPlateaus
+    2.08kB  0.51%  3.09%     2.08kB  0.51%  sync.runtime_SemacquireWaitGroup
+    1.75kB  0.43%  3.52%     1.81kB  0.45%  github.com/jotadrilo/exif.(*stream).truncatable
+    0.88kB  0.22%  3.74%     0.88kB  0.22%  bytes.NewReader (inline)
+    0.52kB  0.13%  3.87%     0.64kB  0.16%  github.com/jotadrilo/exif.strip
+    0.44kB  0.11%  3.97%     0.44kB  0.11%  github.com/jotadrilo/exif.(*stream).payload
+    0.25kB 0.062%  4.04%     0.25kB 0.062%  runtime/pprof.lockProfiles
+    0.22kB 0.054%  4.09%     5.09kB  1.26%  github.com/jotadrilo/exif.Decoder.Decode
+    0.22kB 0.054%  4.14%     0.22kB 0.054%  github.com/jotadrilo/exif.Tag.Text
+    0.11kB 0.027%  4.17%     0.11kB 0.027%  github.com/jotadrilo/exif.orientationSegment (inline)
+    0.08kB 0.019%  4.19%  -182.25kB 45.13%  github.com/jotadrilo/exif.Strip
+         0     0%  4.19%     1.81kB  0.45%  github.com/jotadrilo/exif.(*stream).jpeg
+         0     0%  4.19%     0.22kB 0.054%  github.com/jotadrilo/exif.(*stream).png
+         0     0%  4.19%     0.22kB 0.054%  github.com/jotadrilo/exif.(*stream).webp
+         0     0%  4.19%     5.09kB  1.26%  github.com/jotadrilo/exif.Decode (inline)
+         0     0%  4.19%     0.12kB 0.031%  github.com/jotadrilo/exif.Exif.Make (inline)
+         0     0%  4.19%     0.09kB 0.023%  github.com/jotadrilo/exif.Exif.Model (inline)
+         0     0%  4.19%     0.22kB 0.054%  github.com/jotadrilo/exif.Exif.text
+         0     0%  4.19%     0.66kB  0.16%  github.com/jotadrilo/exif.Strip.func1
+         0     0%  4.19%  -125.58kB 31.10%  github.com/jotadrilo/exif.init.func1
+         0     0%  4.19%   -62.20kB 15.40%  github.com/jotadrilo/exif.init.func2
+         0     0%  4.19%   -48.02kB 11.89%  github.com/jotadrilo/exif/soak.TestSoak_TheHeapPlateaus.func2
+         0     0%  4.19%  -176.06kB 43.60%  github.com/jotadrilo/exif/soak.use
+         0     0%  4.19%     0.25kB 0.062%  github.com/jotadrilo/exif/soak.writeHeapProfile
+         0     0%  4.19%     4.81kB  1.19%  internal/sync.(*Mutex).Lock (inline)
+         0     0%  4.19%     4.81kB  1.19%  internal/sync.(*Mutex).lockSlow
+         0     0%  4.19%     0.11kB 0.027%  runtime.(*scavengerState).sleep
+         0     0%  4.19%     0.11kB 0.027%  runtime.(*timer).maybeAdd
+         0     0%  4.19%     0.11kB 0.027%  runtime.(*timer).modify
+         0     0%  4.19%     0.11kB 0.027%  runtime.(*timer).reset (inline)
+         0     0%  4.19%     0.11kB 0.027%  runtime.(*timers).addHeap
+         0     0%  4.19%     3.94kB  0.98%  runtime.acquireSudog
+         0     0%  4.19%     3.62kB   0.9%  runtime.allgadd
+         0     0%  4.19%     0.11kB 0.027%  runtime.bgscavenge
+         0     0%  4.19%     3.94kB  0.98%  runtime.gcBgMarkWorker
+         0     0%  4.19%     3.94kB  0.98%  runtime.gcMarkDone
+         0     0%  4.19%     3.73kB  0.92%  runtime.growslice
+         0     0%  4.19%   180.47kB 44.69%  runtime.malg
+         0     0%  4.19%   184.41kB 45.67%  runtime.newobject
+         0     0%  4.19%   184.09kB 45.59%  runtime.newproc.func1
+         0     0%  4.19%   184.09kB 45.59%  runtime.newproc1
+         0     0%  4.19%     3.94kB  0.98%  runtime.semacquire (inline)
+         0     0%  4.19%     3.94kB  0.98%  runtime.semacquire1
+         0     0%  4.19%   184.09kB 45.59%  runtime.systemstack
+         0     0%  4.19%     0.25kB 0.062%  runtime/pprof.Lookup
+         0     0%  4.19%     4.81kB  1.19%  sync.(*Mutex).Lock (inline)
+         0     0%  4.19%  -183.62kB 45.47%  sync.(*Pool).Get
+         0     0%  4.19%     0.66kB  0.16%  sync.(*Pool).Put
+         0     0%  4.19%     4.81kB  1.19%  sync.(*Pool).pin
+         0     0%  4.19%     4.81kB  1.19%  sync.(*Pool).pinSlow
+         0     0%  4.19%     2.08kB  0.51%  sync.(*WaitGroup).Wait
+         0     0%  4.19%  -123.12kB 30.49%  testing.tRunner

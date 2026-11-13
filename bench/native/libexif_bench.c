@@ -16,10 +16,15 @@ typedef struct {
 	char taken[32];
 } result;
 
+// now reads a nanosecond clock: on macOS, CLOCK_MONOTONIC ticks only every microsecond.
 static double now(void) {
+#ifdef __APPLE__
+	return clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1e9;
+#else
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return ts.tv_sec + ts.tv_nsec / 1e9;
+#endif
 }
 
 static int degrees(ExifData *ed, ExifTag tag, ExifTag reftag, double *out) {

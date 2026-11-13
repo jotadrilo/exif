@@ -449,6 +449,11 @@ func TestLoopsAndSharedOffsets(t *testing.T) {
 		"Exif IFD past the end":      base(0x8769, 0xFFFFFFF0, 0),
 		"IFD1 past the end":          base(0x8769, 0, 0xFFFFFFF0),
 		"Exif IFD inside the header": base(0x8769, 2, 0),
+		"a GPS pointer with a count of 2": func() []byte {
+			b := base(0x8825, 26, 0)
+			le.PutUint32(b[8+2+12+4:], 2)
+			return b
+		}(),
 	} {
 		x, err := exif.Parse(data)
 		if err != nil {

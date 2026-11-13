@@ -141,8 +141,12 @@ func (x Exif) pointer(off uint32, id uint16) (uint32, bool) {
 	if at < 0 {
 		return 0, false
 	}
-	// Read in place: a pointer is one LONG or IFD (or, rarely, a SHORT), held in the entry.
+	// Read in place: a pointer is one LONG or IFD (or, rarely, a SHORT), held in the entry. Any
+	// other count is malformed.
 	e := raw[at : at+ifdEntrySize]
+	if x.u32(e[4:]) != 1 {
+		return 0, false
+	}
 	var p uint32
 	switch Type(x.u16(e[2:])) {
 	case Long, IFDType:
@@ -150,9 +154,6 @@ func (x Exif) pointer(off uint32, id uint16) (uint32, bool) {
 	case Short:
 		p = uint32(x.u16(e[8:]))
 	default:
-		return 0, false
-	}
-	if x.u32(e[4:]) == 0 {
 		return 0, false
 	}
 	if p == off || p == x.ifd0 || !x.validIFD(p) {

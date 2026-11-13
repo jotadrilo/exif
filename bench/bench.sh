@@ -23,7 +23,7 @@ out=$(mkdir -p "${1:-$here/results/latest}" && cd "${1:-$here/results/latest}" &
 corpus=${CORPUS:-$here/results/corpus}
 lock=/tmp/jotadrilo-bench.lock
 cores=$(sysctl -n hw.ncpu)
-maxload=${MAXLOAD:-$(echo "$cores / 4" | bc -l)}
+maxload=${MAXLOAD:-$(echo "scale=2; $cores / 4" | bc)}
 count=${COUNT:-10}
 sampletime=${TIME:-300ms}
 soakfiles=${SOAK_FILES:-200000}

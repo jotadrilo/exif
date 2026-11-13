@@ -152,7 +152,8 @@ func TestSoak_TheHeapPlateaus(t *testing.T) {
 			t.Errorf("at %d files the heap grew past its plateau: %d bytes in %d objects, plateau %d bytes in %d objects",
 				s.files, s.heapInuse, s.objects, plateau.heapInuse, plateau.objects)
 		}
-		if s.rssKB > plateau.rssKB+plateau.rssKB/4+4096 {
+		// Only current RSS can plateau; where only the peak is readable (macOS), it is logged.
+		if currentRSS && s.rssKB > plateau.rssKB+plateau.rssKB/4+4096 {
 			t.Errorf("at %d files RSS grew past its plateau: %d KiB, plateau %d KiB", s.files, s.rssKB, plateau.rssKB)
 		}
 	}
@@ -173,6 +174,9 @@ func writeHeapProfile(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+// currentRSS reports whether rssKB reads the resident set size now (Linux) rather than its peak.
+var currentRSS = func() bool { _, err := os.Stat("/proc/self/statm"); return err == nil }()
 
 // rssKB returns the resident set size now, on Linux, or the peak elsewhere.
 func rssKB() int64 {
