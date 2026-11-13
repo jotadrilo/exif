@@ -19,7 +19,7 @@ jobs:
           - { os: macos-latest, go: stable }      # darwin/arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
@@ -42,7 +42,7 @@ jobs:
       matrix:
         target: [FuzzParseJPEG, FuzzParseTIFF, FuzzParsePNG, FuzzParseWebP, FuzzStrip]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version: stable
@@ -58,7 +58,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version: stable
