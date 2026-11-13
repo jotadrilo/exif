@@ -1,6 +1,6 @@
 module github.com/jotadrilo/exif/soak
 
-go 1.23
+go 1.27.4
 
 replace github.com/jotadrilo/exif => ../
 

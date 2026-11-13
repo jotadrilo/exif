@@ -10,7 +10,7 @@ stripper. Pure Go, standard library only, works with `CGO_ENABLED=0`.
 go get github.com/jotadrilo/exif
 ```
 
-Go 1.23 or later.
+Go 1.27.4 or later.
 
 ## What it does
 
