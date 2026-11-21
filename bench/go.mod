@@ -5,7 +5,7 @@ go 1.27.4
 replace github.com/jotadrilo/exif => ../
 
 require (
-	github.com/bep/imagemeta v1.1.1
+	github.com/bep/imagemeta v1.1.2
 	github.com/dsoprea/go-exif/v3 v3.0.1
 	github.com/evanoberholster/imagemeta v1.1.0
 	github.com/jotadrilo/exif v0.0.0-00010101000000-000000000000
